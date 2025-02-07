@@ -8,9 +8,9 @@
 #include <windows.h>
 
 #define WINDOW_HEIGHT 50
-#define WINDOW_WIDTH 200
-#define TEXT_BOX_HEIGHT 25
-#define TEXT_BOX_WIDTH 100
+#define WINDOW_WIDTH 300
+#define TEXT_BOX_HEIGHT WINDOW_HEIGHT -15
+#define TEXT_BOX_WIDTH WINDOW_WIDTH -15
 
 #define HOTKEY_IDENT 1234
 
@@ -24,7 +24,7 @@ HWND createButton(HINSTANCE hInstance, HWND hwnd) {
     HWND hwndButton = CreateWindow(
     L"EDIT",  // Predefined class; Unicode assumed
     L"",      // Button text
-    WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTO3STATE | ES_CENTER  ,  // Styles
+    WS_TABSTOP | WS_VISIBLE | WS_CHILD | ES_CENTER  ,  // Styles
     0,         // x position
     0,         // y position
     TEXT_BOX_WIDTH,        // Button width
@@ -33,6 +33,7 @@ HWND createButton(HINSTANCE hInstance, HWND hwnd) {
     NULL,       // No menu.
     hInstance,
     NULL);      // Pointer not needed.
+
     return hwndButton;
 }
 
@@ -44,7 +45,7 @@ HWND CreateWin(HINSTANCE hInstance) {
         0,            // Window style
 
         // Size and position
-        0, 0, WINDOW_WIDTH, WINDOW_HEIGHT,
+        100, 100, WINDOW_WIDTH, WINDOW_HEIGHT,
 
         NULL,       // Parent window
         NULL,       // Menu
@@ -54,17 +55,40 @@ HWND CreateWin(HINSTANCE hInstance) {
     return hwnd;
 }
 void CenterItem(HWND item,HWND bounding) {
-    RECT rc;
+    /*RECT rc;
     RECT bounding_rect;
 
     GetClientRect(item, &rc);
+
     GetClientRect(bounding, &bounding_rect);
     printf("item height: %d item width: %d\n",rc.bottom, rc.right );
-    printf("bounding height: %d bounding width: %d\n",bounding_rect.bottom + bounding_rect.top, bounding_rect.right);
+    printf("bounding height: %d bounding width: %d\n",bounding_rect.bottom, bounding_rect.right);
 
     int x = (int)( (bounding_rect.right) - (rc.right - rc.left)) / 2;
     int y = (int)((bounding_rect.bottom) - (rc.bottom - rc.top)) / 2;
-    MoveWindow(item, x, y, rc.right , rc.bottom , 1);
+    //MoveWindow(item, x, y, rc.right , rc.bottom , 1);*/
+    if (!item || !bounding) return;
+
+    RECT rcBounding, rcItem;
+    GetWindowRect(bounding, &rcBounding);
+    GetWindowRect(item, &rcItem);
+
+    int itemWidth = rcItem.right - rcItem.left;
+    int itemHeight = rcItem.bottom - rcItem.top;
+
+    int boundingWidth = rcBounding.right - rcBounding.left;
+    int boundingHeight = rcBounding.bottom - rcBounding.top;
+    printf("item height: %d item width: %d\n",itemHeight,itemWidth );
+    printf("bounding height: %d bounding width: %d\n",boundingHeight,boundingWidth);
+    int newX = (boundingWidth - itemWidth) / 2;
+    int newY = (boundingHeight - itemHeight) / 2;
+
+    // Convert screen coordinates to parent-relative coordinates
+    POINT pt = { newX, newY };
+    ScreenToClient(bounding, &pt);
+    MoveWindow(item, newX, newY, itemWidth , itemHeight , 1);
+    // Move the item to the center
+    //SetWindowPos(item, NULL, pt.x, pt.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE);
 
 }
 
@@ -93,18 +117,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLine,
         printf("failed");
         return -1;
     }
+
     CenterItem(hwnd, GetDesktopWindow());
 
     RegisterHotKey(hwnd,HOTKEY_IDENT,MOD_ALT , 0x4D );
 
     SetStyleWindow(hwnd, WS_POPUP);
     text_box = createButton(hInstance, hwnd);
+
     CenterItem(text_box,hwnd);
 
     SetFocus(text_box);
-    //https://learn.microsoft.com/en-us/windows/win32/winmsg/window-styles
 
-    ShowWindow(hwnd, nCmdShow);
+    //https://learn.microsoft.com/en-us/windows/win32/winmsg/window-styles
+    ShowWindow(hwnd, SW_NORMAL);
 
 
     MSG msg = {0};
@@ -130,7 +156,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             switch (wParam) {
                 case VK_RETURN:
                 case VK_ESCAPE:
-                    SetWindowText(hwnd, L"");
+                    SetWindowText(text_box, L"");
+
                     HideWindow(hwnd);
                     return 0;
                 default: ;
@@ -142,7 +169,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
 
         case WM_HOTKEY: {
             if (wParam == HOTKEY_IDENT) {
-                printf("hot key pressed:");
+                printf("hot key pressed:\n");
                 ShowWindow(hwnd,SW_SHOW);
                 BringWindowToTop(hwnd);
                 SetFocus(text_box);
@@ -150,7 +177,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             }
             break;
         }
-
+        /*case WM_ACTIVATEAPP: {
+            printf("out of focus\n");
+            HideWindow(hwnd);
+        }*/
 
         case WM_SIZE:
         {
@@ -163,7 +193,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         }
         case WM_PAINT:
         {
-            printf("paint");
+            printf("paint\n");
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
 
@@ -174,6 +204,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             EndPaint(hwnd, &ps);
             break;
         }
+        case WM_CREATE: {
+
+            HRGN hRgn = CreateRoundRectRgn(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 5, 5); // Rounded region
+            SetWindowRgn(hwnd, hRgn, TRUE);
+
+            break;
+        }
         case WM_CLOSE:
         {
             if (MessageBox(hwnd, L"Really quit?", L"DONT QUIT MY APP", MB_OKCANCEL ) == IDOK)
@@ -181,10 +218,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 DestroyWindow(hwnd);
 
             }
+            break;
         }
         case WM_DESTROY:
         {
             PostQuitMessage(0);
+            break;
         }
 
 
