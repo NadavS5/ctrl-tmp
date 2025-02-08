@@ -18,7 +18,25 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
 const wchar_t CLASS_NAME[]  = L"myClass";
 HWND text_box;
+BOOL isOpen = FALSE;
 
+TCHAR tempPath[MAX_PATH+1];
+// free after use
+TCHAR* create_temp_file(const TCHAR* fileExt) {
+    TCHAR* buff = malloc(wcslen(tempPath) + wcslen(fileExt) + 1);
+    wcscpy(buff, tempPath);
+    wcscat(buff, L".");
+    wcscat(buff, fileExt);
+    printf("%ls\n", buff);
+    CreateFileW(buff, GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_NEW, 0, NULL);
+    return buff;
+}
+
+void OpenVScode(const TCHAR* filePath) {
+    wchar_t command[MAX_PATH];
+    wsprintfW(command, L"code \"%s\"", filePath);  // Format the command
+    _wsystem(command);
+}
 
 HWND createButton(HINSTANCE hInstance, HWND hwnd) {
     HWND hwndButton = CreateWindow(
@@ -99,8 +117,23 @@ void HideWindow(HWND window) {
     //SetWindowLong(window, GWL_STYLE, WS_VIS);
     ShowWindow(window, SW_HIDE);
 }
-
+int DirectoryExists(const char *path) {
+    DWORD attr = GetFileAttributes(path);
+    return (attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY));
+}
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLine, int nCmdShow) {
+    GetTempPathW(sizeof(tempPath)/sizeof(tempPath[0]),tempPath);
+
+
+    wcscat(tempPath,L"ctrl-tmp\\");
+    printf("tempPath: %ls\n" ,tempPath );
+    if (!DirectoryExists(tempPath)) {
+        int err = CreateDirectory(tempPath,NULL);
+        if (err == 0) {
+            printf("create directory error\n");
+        }
+    }
+
 
 
 
@@ -130,7 +163,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLine,
     SetFocus(text_box);
 
     //https://learn.microsoft.com/en-us/windows/win32/winmsg/window-styles
-    ShowWindow(hwnd, SW_NORMAL);
+    //ShowWindow(hwnd, SW_NORMAL);
 
 
     MSG msg = {0};
@@ -155,11 +188,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             puts("Key Down");
             switch (wParam) {
                 case VK_RETURN:
+                    char buffer[20];
+                    GetWindowTextW(text_box,buffer,sizeof(buffer));
+                    const TCHAR* filePath = create_temp_file(buffer);
+                    OpenVScode(filePath);
+                    free((void*)filePath);
                 case VK_ESCAPE:
                     SetWindowText(text_box, L"");
-
+                    isOpen = FALSE;
                     HideWindow(hwnd);
                     return 0;
+                    break;
                 default: ;
 
             }
@@ -168,12 +207,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
 
 
         case WM_HOTKEY: {
-            if (wParam == HOTKEY_IDENT) {
+            if (wParam == HOTKEY_IDENT && !isOpen) {
                 printf("hot key pressed:\n");
                 ShowWindow(hwnd,SW_SHOW);
                 BringWindowToTop(hwnd);
                 SetFocus(text_box);
-
+                isOpen = TRUE;
+            }else {
+                HideWindow(hwnd);
+                isOpen = FALSE;
             }
             break;
         }
