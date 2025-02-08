@@ -1,5 +1,5 @@
 # A Simple Tool To Quickly Create Temporary Files
-
+A tool that allows you to create a temporary file with a custom extention quickly
 ## How To Use
 - Open Shortcut: `ALT + M`
 - Type the file extention you want and press `Enter`
