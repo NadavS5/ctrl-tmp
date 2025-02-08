@@ -28,13 +28,17 @@ TCHAR* create_temp_file(const TCHAR* fileExt) {
     wcscat(buff, L".");
     wcscat(buff, fileExt);
     printf("%ls\n", buff);
-    CreateFileW(buff, GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_NEW, 0, NULL);
+    HANDLE fh = CreateFileW(buff, GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS , 0, NULL);
+    char* message = "#Created By ctrl-tmp By @nadavs5\n";
+    DWORD len = strlen(message);
+    WriteFile(fh,message, len, &len, NULL);
+    CloseHandle(fh);
     return buff;
 }
 
 void OpenVScode(const TCHAR* filePath) {
     wchar_t command[MAX_PATH];
-    wsprintfW(command, L"code \"%s\"", filePath);  // Format the command
+    wsprintfW(command, L"code --disable-workspace-trust \"%s\"", filePath);  // Format the command
     _wsystem(command);
 }
 
@@ -210,7 +214,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             if (wParam == HOTKEY_IDENT && !isOpen) {
                 printf("hot key pressed:\n");
                 ShowWindow(hwnd,SW_SHOW);
-                BringWindowToTop(hwnd);
+                SetForegroundWindow(hwnd);
                 SetFocus(text_box);
                 isOpen = TRUE;
             }else {
